@@ -1,3 +1,5 @@
+import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -117,6 +119,11 @@ def find_expected_csv(extract_dir: Path, expected_filename: str) -> Path:
         if csv_file.stem.lower() == expected_stem:
             return csv_file
 
+    for csv_file in csv_files:
+        normalized_actual = re.sub(r"_\d{8}$", "", csv_file.stem.lower())
+        if normalized_actual == expected_stem:
+            return csv_file
+
     found_files = "\n".join(
         f"- {csv_file.relative_to(extract_dir)}" for csv_file in csv_files
     )
@@ -226,6 +233,92 @@ def ensure_duckdb_available() -> None:
         )
 
 
+def split_sql_statements(sql_content: str) -> list[str]:
+    statements: list[str] = []
+    current: list[str] = []
+    in_single_quote = False
+    in_double_quote = False
+    in_line_comment = False
+    in_block_comment = False
+    index = 0
+
+    while index < len(sql_content):
+        char = sql_content[index]
+        next_char = sql_content[index + 1] if index + 1 < len(sql_content) else ""
+
+        if in_line_comment:
+            current.append(char)
+            if char == "\n":
+                in_line_comment = False
+            index += 1
+            continue
+
+        if in_block_comment:
+            current.append(char)
+            if char == "*" and next_char == "/":
+                current.append(next_char)
+                in_block_comment = False
+                index += 2
+                continue
+            index += 1
+            continue
+
+        if in_single_quote:
+            current.append(char)
+            if char == "'":
+                in_single_quote = False
+            index += 1
+            continue
+
+        if in_double_quote:
+            current.append(char)
+            if char == '"':
+                in_double_quote = False
+            index += 1
+            continue
+
+        if char == "-" and next_char == "-":
+            current.append("--")
+            in_line_comment = True
+            index += 2
+            continue
+
+        if char == "/" and next_char == "*":
+            current.append("/*")
+            in_block_comment = True
+            index += 2
+            continue
+
+        if char == "'":
+            current.append(char)
+            in_single_quote = True
+            index += 1
+            continue
+
+        if char == '"':
+            current.append(char)
+            in_double_quote = True
+            index += 1
+            continue
+
+        if char == ";":
+            statement = "".join(current).strip()
+            if statement:
+                statements.append(statement)
+            current = []
+            index += 1
+            continue
+
+        current.append(char)
+        index += 1
+
+    tail = "".join(current).strip()
+    if tail:
+        statements.append(tail)
+
+    return statements
+
+
 def execute_sql_file(sql_file: Path) -> None:
     if not sql_file.exists():
         raise FileNotFoundError(f"Arquivo SQL não encontrado: {sql_file}")
@@ -238,12 +331,29 @@ def execute_sql_file(sql_file: Path) -> None:
 
     print(f"Executando: {sql_file.relative_to(PROJECT_ROOT)}")
 
-    subprocess.run(
-        ["duckdb", str(DB_PATH), "-c", sql_content],
-        text=True,
-        cwd=PROJECT_ROOT,
-        check=True,
-    )
+    if shutil.which("duckdb") is not None:
+        subprocess.run(
+            ["duckdb", str(DB_PATH), "-c", sql_content],
+            text=True,
+            cwd=PROJECT_ROOT,
+            check=True,
+        )
+        return
+
+    try:
+        import duckdb as duckdb_module
+    except ImportError as exc:
+        raise RuntimeError(
+            "DuckDB CLI não encontrado e o pacote Python 'duckdb' também não está disponível."
+        ) from exc
+
+    connection = duckdb_module.connect(str(DB_PATH))
+    try:
+        for statement in split_sql_statements(sql_content):
+            if statement.strip():
+                connection.execute(statement)
+    finally:
+        connection.close()
 
 
 def recreate_database() -> None:
@@ -265,6 +375,8 @@ def recreate_database() -> None:
 
 
 def main() -> None:
+    os.chdir(PROJECT_ROOT)
+
     print("Projeto Censo 2022 - Belo Horizonte")
     print("Execução reproduzível com DuckDB")
     print()
