@@ -1,0 +1,23 @@
+# Dados brutos (grandes)
+*.dbf
+*.shp
+*.shx
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.fbn
+*.fbx
+*.ain
+*.aih
+*.ixs
+*.mxs
+*.atx
+Agregados_por_setores_*.csv
+setores_MG.csv
+*.duckdb
+*.zip
+*.7z
+*.rar
+*.tar.gz
+*.xlsx
