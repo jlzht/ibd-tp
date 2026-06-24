@@ -21,3 +21,4 @@ setores_MG.csv
 *.rar
 *.tar.gz
 *.xlsx
+*.duckdb
