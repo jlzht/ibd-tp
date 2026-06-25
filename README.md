@@ -49,7 +49,6 @@ queries.sql   -> exporta resultados das consultas exploratórias
 - [sql/schema.sql](sql/schema.sql): define o modelo relacional final.
 - [sql/staging.sql](sql/staging.sql): carrega os CSVs em tabelas temporárias.
 - [sql/inserts.sql](sql/inserts.sql): preenche as tabelas finais.
-- [sql/checks.sql](sql/checks.sql): gera relatórios de controle e qualidade.
 - [sql/queries.sql](sql/queries.sql): gera resultados analíticos em CSV.
 - [outputs](outputs): armazena os arquivos exportados.
 
