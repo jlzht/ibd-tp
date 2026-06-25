@@ -369,6 +369,71 @@ def recreate_database() -> None:
     for sql_file in SQL_PHASES:
         execute_sql_file(sql_file)
 
+    try:
+        import duckdb as duckdb_module
+    except ImportError as exc:
+        raise RuntimeError("Não foi possível importar duckdb para gerar o relatório de qualidade.") from exc
+
+    connection = duckdb_module.connect(str(DB_PATH))
+    try:
+        quality_report = connection.execute(
+            """
+            SELECT * FROM (
+                SELECT 'municipio' AS tabela, 'cd_municipio' AS coluna, COUNT(*) AS total_registros,
+                       COUNT(*) FILTER (WHERE cd_municipio IS NULL OR TRIM(cd_municipio) = '') AS valores_nulos,
+                       COUNT(*) - COUNT(DISTINCT cd_municipio) AS valores_duplicados
+                FROM municipio
+                UNION ALL
+                SELECT 'regional', 'cd_regional', COUNT(*),
+                       COUNT(*) FILTER (WHERE cd_regional IS NULL OR TRIM(cd_regional) = ''),
+                       COUNT(*) - COUNT(DISTINCT cd_regional)
+                FROM regional
+                UNION ALL
+                SELECT 'bairro', 'id_bairro', COUNT(*),
+                       COUNT(*) FILTER (WHERE id_bairro IS NULL OR TRIM(id_bairro) = ''),
+                       COUNT(*) - COUNT(DISTINCT id_bairro)
+                FROM bairro
+                UNION ALL
+                SELECT 'setor_censitario', 'cd_setor', COUNT(*),
+                       COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+                       COUNT(*) - COUNT(DISTINCT cd_setor)
+                FROM setor_censitario
+                UNION ALL
+                SELECT 'indicador_populacao', 'cd_setor', COUNT(*),
+                       COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+                       COUNT(*) - COUNT(DISTINCT cd_setor)
+                FROM indicador_populacao
+                UNION ALL
+                SELECT 'indicador_renda', 'cd_setor', COUNT(*),
+                       COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+                       COUNT(*) - COUNT(DISTINCT cd_setor)
+                FROM indicador_renda
+                UNION ALL
+                SELECT 'indicador_saneamento', 'cd_setor', COUNT(*),
+                       COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+                       COUNT(*) - COUNT(DISTINCT cd_setor)
+                FROM indicador_saneamento
+                UNION ALL
+                SELECT 'indicador_alfabetizacao', 'cd_setor', COUNT(*),
+                       COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+                       COUNT(*) - COUNT(DISTINCT cd_setor)
+                FROM indicador_alfabetizacao
+            )
+            ORDER BY tabela
+            """
+        ).fetchall()
+
+        output_path = OUTPUTS_DIR / "checks" / "qualidade_dados.csv"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", encoding="utf-8", newline="") as file_handle:
+            file_handle.write("tabela,coluna,total_registros,valores_nulos,valores_duplicados\n")
+            for row in quality_report:
+                file_handle.write(
+                    ",".join(str(value) for value in row) + "\n"
+                )
+    finally:
+        connection.close()
+
     print()
     print("Banco recriado com sucesso.")
     print(f"Arquivo gerado: {DB_PATH}")

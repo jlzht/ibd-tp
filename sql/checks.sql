@@ -24,6 +24,50 @@ TO 'outputs/checks/contagem_staging.csv'
 WITH (HEADER, DELIMITER ',');
 
 COPY (
+    SELECT 'municipio' AS tabela, 'cd_municipio' AS coluna, COUNT(*) AS total_registros,
+           COUNT(*) FILTER (WHERE cd_municipio IS NULL OR TRIM(cd_municipio) = '') AS valores_nulos,
+           COUNT(*) - COUNT(DISTINCT cd_municipio) AS valores_duplicados
+    FROM municipio
+    UNION ALL
+    SELECT 'regional', 'cd_regional', COUNT(*),
+           COUNT(*) FILTER (WHERE cd_regional IS NULL OR TRIM(cd_regional) = ''),
+           COUNT(*) - COUNT(DISTINCT cd_regional)
+    FROM regional
+    UNION ALL
+    SELECT 'bairro', 'id_bairro', COUNT(*),
+           COUNT(*) FILTER (WHERE id_bairro IS NULL OR TRIM(id_bairro) = ''),
+           COUNT(*) - COUNT(DISTINCT id_bairro)
+    FROM bairro
+    UNION ALL
+    SELECT 'setor_censitario', 'cd_setor', COUNT(*),
+           COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+           COUNT(*) - COUNT(DISTINCT cd_setor)
+    FROM setor_censitario
+    UNION ALL
+    SELECT 'indicador_populacao', 'cd_setor', COUNT(*),
+           COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+           COUNT(*) - COUNT(DISTINCT cd_setor)
+    FROM indicador_populacao
+    UNION ALL
+    SELECT 'indicador_renda', 'cd_setor', COUNT(*),
+           COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+           COUNT(*) - COUNT(DISTINCT cd_setor)
+    FROM indicador_renda
+    UNION ALL
+    SELECT 'indicador_saneamento', 'cd_setor', COUNT(*),
+           COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+           COUNT(*) - COUNT(DISTINCT cd_setor)
+    FROM indicador_saneamento
+    UNION ALL
+    SELECT 'indicador_alfabetizacao', 'cd_setor', COUNT(*),
+           COUNT(*) FILTER (WHERE cd_setor IS NULL OR TRIM(cd_setor) = ''),
+           COUNT(*) - COUNT(DISTINCT cd_setor)
+    FROM indicador_alfabetizacao
+)
+TO 'outputs/checks/qualidade_dados.csv'
+WITH (HEADER, DELIMITER ',');
+
+COPY (
     SELECT
         s.cd_setor,
         b.nm_bairro,
